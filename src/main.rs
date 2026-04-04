@@ -24,8 +24,11 @@ mod utils;
 // mod day9;
 // use day9::solve;
 
- mod day10;
- use day10::solve;
+//  mod day10;
+//  use day10::solve;
+
+mod day11;
+use day11::solve;
 
 // mod day13;
 // use day13::solve;
