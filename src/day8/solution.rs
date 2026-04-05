@@ -40,6 +40,11 @@ fn part1(outputs: &Vec<String>) -> u32 {
 fn part2(lines: &Vec<(String, String)>) -> u32 {
     let mut result = 0;
 
+    fn take_match(v: &mut Vec<String>, pred: impl Fn(&String) -> bool) -> String {
+        let i = v.iter().position(pred).unwrap();
+        v.remove(i)
+    }
+
     for (signals, outputs) in lines {
         let mut sorted: Vec<String> = signals
             .split(" ")
@@ -62,27 +67,15 @@ fn part2(lines: &Vec<(String, String)>) -> u32 {
 
         // 3 must have all segments of 1
         map.insert(
-            segments_5.remove(
-                segments_5
-                    .iter()
-                    .find_position(|x| one.iter().all(|y| x.contains(*y)))
-                    .unwrap()
-                    .0,
-            ),
+            take_match(segments_5, |x| one.iter().all(|y| x.contains(*y))),
             3,
         );
 
         // 5 must have 1 missing segment of 4
         map.insert(
-            segments_5.remove(
-                segments_5
-                    .iter()
-                    .find_position(|x| {
-                        four.iter().filter(|segment| x.contains(**segment)).count() == 3
-                    })
-                    .unwrap()
-                    .0,
-            ),
+            take_match(segments_5, |x| {
+                four.iter().filter(|s| x.contains(**s)).count() == 3
+            }),
             5,
         );
 
@@ -91,25 +84,13 @@ fn part2(lines: &Vec<(String, String)>) -> u32 {
 
         // 6 must not have all segments of 1
         map.insert(
-            segments_6.remove(
-                segments_6
-                    .iter()
-                    .find_position(|x| !one.iter().all(|y| x.contains(*y)))
-                    .unwrap()
-                    .0,
-            ),
+            take_match(segments_6, |x| !one.iter().all(|y| x.contains(*y))),
             6,
         );
 
         // 9 must have all segments of 4
         map.insert(
-            segments_6.remove(
-                segments_6
-                    .iter()
-                    .find_position(|x| four.iter().all(|y| x.contains(*y)))
-                    .unwrap()
-                    .0,
-            ),
+            take_match(segments_6, |x| four.iter().all(|y| x.contains(*y))),
             9,
         );
 
