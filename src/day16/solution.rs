@@ -3,40 +3,48 @@ use crate::utils::read_lines;
 const FILENAME: &str = "src/day16/input.txt";
 
 pub fn solve() -> Result<(), String> {
-    let packets = read_lines(FILENAME)
-        .iter()
-        .map(|hex| packet_from_hex(hex))
-        .collect();
+    let packet = packet_from_hex(&read_lines(FILENAME)[0]);
 
-    let mut result = part1(&packets);
+    let mut result = part1(&packet);
     println!("Part 1: {result}");
 
-    result = part2(&packets);
+    result = part2(&packet);
     println!("Part 2: {result}");
 
     Ok(())
 }
 
-fn part1(packets: &Vec<Box<dyn Packet>>) -> u32 {
-    packets
-        .iter()
-        .fold(0, |acc, packet| acc + packet.get_version_sum())
+fn part1(packet: &Box<dyn Packet>) -> u64 {
+    packet.get_version_sum()
 }
 
-fn part2(packets: &Vec<Box<dyn Packet>>) -> u32 {
-    0
+fn part2(packet: &Box<dyn Packet>) -> u64 {
+    packet.evaluate()
 }
 
 enum TypeId {
-    Operator = 0,
+    Sum = 0,
+    Product = 1,
+    Minimum = 2,
+    Maximum = 3,
     Literal = 4,
+    Greater = 5,
+    Less = 6,
+    Equal = 7,
 }
 
 impl TypeId {
     fn from_binary(id: &str) -> Self {
         match isize::from_str_radix(id, 2).unwrap() {
+            0 => TypeId::Sum,
+            1 => TypeId::Product,
+            2 => TypeId::Minimum,
+            3 => TypeId::Maximum,
             4 => TypeId::Literal,
-            _ => TypeId::Operator,
+            5 => TypeId::Greater,
+            6 => TypeId::Less,
+            7 => TypeId::Equal,
+            _ => panic!(),
         }
     }
 }
@@ -57,7 +65,8 @@ impl LengthTypeId {
 }
 
 trait Packet {
-    fn get_version_sum(&self) -> u32;
+    fn get_version_sum(&self) -> u64;
+    fn evaluate(&self) -> u64;
 }
 
 struct Header {
@@ -95,8 +104,12 @@ impl LiteralPacket {
 }
 
 impl Packet for LiteralPacket {
-    fn get_version_sum(&self) -> u32 {
-        self.header.version as u32
+    fn get_version_sum(&self) -> u64 {
+        self.header.version as u64
+    }
+
+    fn evaluate(&self) -> u64 {
+        self.literal
     }
 }
 
@@ -141,12 +154,27 @@ impl OperatorPacket {
 }
 
 impl Packet for OperatorPacket {
-    fn get_version_sum(&self) -> u32 {
-        self.header.version as u32
+    fn get_version_sum(&self) -> u64 {
+        self.header.version as u64
             + self
                 .sub_packets
                 .iter()
                 .fold(0, |acc, packet| acc + packet.get_version_sum())
+    }
+
+    fn evaluate(&self) -> u64 {
+        let mut values = self.sub_packets.iter().map(|x| x.evaluate());
+
+        match self.header.type_id {
+            TypeId::Sum => values.sum(),
+            TypeId::Product => values.product(),
+            TypeId::Minimum => values.min().unwrap(),
+            TypeId::Maximum => values.max().unwrap(),
+            TypeId::Greater => (values.next().unwrap() > values.next().unwrap()) as u64,
+            TypeId::Less => (values.next().unwrap() < values.next().unwrap()) as u64,
+            TypeId::Equal => (values.next().unwrap() == values.next().unwrap()) as u64,
+            _ => panic!(),
+        }
     }
 }
 
@@ -181,7 +209,7 @@ fn packet_from_hex(hex: &str) -> Box<dyn Packet> {
 
     match header.type_id {
         TypeId::Literal => Box::new(LiteralPacket::create(header, &bits[6..]).0),
-        TypeId::Operator => Box::new(OperatorPacket::create(header, &bits[6..]).0),
+        _ => Box::new(OperatorPacket::create(header, &bits[6..]).0),
     }
 }
 
@@ -203,7 +231,7 @@ fn packets_from_bits(bits: &str, amount: Option<usize>) -> (Vec<Box<dyn Packet>>
                 let (p, b) = LiteralPacket::create(header, &remaining[6..]);
                 (Box::new(p), b)
             }
-            TypeId::Operator => {
+            _ => {
                 let (p, b) = OperatorPacket::create(header, &remaining[6..]);
                 (Box::new(p), b)
             }
